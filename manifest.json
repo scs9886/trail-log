@@ -1,0 +1,14 @@
+{
+  "name": "North Idaho Trail Log",
+  "short_name": "Trail Log",
+  "description": "Personal MTB ride journal for Post Falls and surrounding trails",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2D4A2D",
+  "theme_color": "#2D4A2D",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

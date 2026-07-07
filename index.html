@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trail Log">
+<meta name="theme-color" content="#2D4A2D">
+<title>North Idaho Trail Log</title>
+<style>
+  :root {
+    --pine: #2D4A2D;
+    --pine-mid: #3D6B3D;
+    --pine-light: #5A8C5A;
+    --moss: #7A9E6A;
+    --bark: #8B6914;
+    --stone: #6B7B6B;
+    --cream: #F5F0E8;
+    --dirt: #C4A882;
+    --bg: #EEF2EA;
+    --card: #FAFAF6;
+    --border: #D4CEC4;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #2A3A2A; overscroll-behavior: none; }
+  body { display: flex; flex-direction: column; }
+
+  /* Header */
+  .header {
+    background: var(--pine);
+    padding: calc(var(--safe-top) + 16px) 16px 16px;
+    position: sticky; top: 0; z-index: 100;
+    flex-shrink: 0;
+  }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .header-title { display: flex; align-items: center; gap: 8px; }
+  .header-title h1 { color: #E8F4E8; font-size: 18px; font-weight: 700; }
+  .header-sub { color: #8FB88F; font-size: 11px; margin-top: 1px; }
+  .header-actions { display: flex; gap: 8px; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+  .stat { background: rgba(255,255,255,0.09); border-radius: 8px; padding: 8px 4px; text-align: center; }
+  .stat-val { color: #C8E8C8; font-size: 18px; font-weight: 700; line-height: 1; }
+  .stat-label { color: #6A8F6A; font-size: 10px; margin-top: 2px; }
+
+  /* Search */
+  .search-wrap { position: relative; }
+  .search-input {
+    width: 100%; padding: 9px 12px 9px 36px;
+    border-radius: 10px; border: none; font-size: 15px;
+    background: rgba(255,255,255,0.12); color: #E8F4E8;
+    outline: none;
+  }
+  .search-input::placeholder { color: #7A9F7A; }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #7A9F7A; font-size: 16px; pointer-events: none; }
+
+  /* Filter tabs */
+  .filter-bar {
+    background: #F5F2EC;
+    border-bottom: 1px solid #D8D0C4;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; flex-shrink: 0;
+  }
+  .filter-bar::-webkit-scrollbar { display: none; }
+  .filter-row { display: flex; gap: 6px; padding: 10px 12px; width: max-content; }
+  .pill {
+    padding: 5px 13px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    border: 1.5px solid #C8D4C0; background: transparent; color: var(--stone);
+    white-space: nowrap; cursor: pointer;
+  }
+  .pill.active { background: var(--pine-mid); border-color: var(--pine-mid); color: #fff; font-weight: 600; }
+  .pill-sep { width: 1px; background: #C8D4C0; margin: 4px 0; flex-shrink: 0; }
+  .trail-count { padding: 4px 12px 8px; font-size: 11px; color: var(--stone); background: #F5F2EC; flex-shrink: 0; }
+
+  /* Trail list */
+  .trail-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px calc(var(--safe-bottom) + 80px); }
+
+  /* Trail card */
+  .trail-card {
+    background: var(--card); border-radius: 14px; margin-bottom: 10px;
+    border: 1.5px solid var(--border); overflow: hidden;
+  }
+  .trail-card.visited { border-left: 4px solid var(--pine-light); }
+  .card-header { padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+  .visit-btn {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; margin-top: 2px;
+    border: 2px solid #C0B8AC; background: transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; color: #fff;
+  }
+  .visit-btn.done { background: var(--pine-light); border-color: var(--pine-light); }
+  .card-info { flex: 1; min-width: 0; }
+  .card-name { font-size: 14px; font-weight: 700; color: #1A2A1A; line-height: 1.3; }
+  .card-loc { font-size: 11px; color: var(--stone); margin-top: 2px; }
+  .card-meta-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .badge {
+    font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px;
+    border: 1px solid; white-space: nowrap;
+  }
+  .badge-beginner { background: #E8F4E8; color: #2D4A2D; border-color: #7A9E6A; }
+  .badge-intermediate { background: #FFF3E0; color: #5D3A00; border-color: #C4A882; }
+  .badge-xc { background: #E8F0F5; color: #1A3A4A; border-color: #7BA7BC; }
+  .badge-flow { background: #F5EDE8; color: #4A2D1A; border-color: #C4956A; }
+  .stars-small { color: var(--bark); font-size: 12px; letter-spacing: -1px; }
+  .visited-tag { font-size: 10px; color: var(--pine-light); font-weight: 600; }
+  .notes-tag { font-size: 10px; color: var(--bark); }
+  .chevron { color: var(--stone); font-size: 12px; flex-shrink: 0; margin-top: 4px; }
+
+  /* Expanded detail */
+  .card-detail { border-top: 1px solid #E4DED6; padding: 14px; display: none; }
+  .card-detail.open { display: block; }
+  .detail-meta { display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
+  .detail-meta-item { font-size: 11px; color: var(--stone); display: flex; align-items: center; gap: 4px; }
+  .detail-summary { font-size: 13px; line-height: 1.7; color: #3A4A3A; margin-bottom: 12px; }
+  .tips-box {
+    background: #F0F5EE; border-radius: 8px; padding: 10px 12px;
+    border-left: 3px solid var(--moss); margin-bottom: 14px;
+  }
+  .tips-label { font-size: 10px; font-weight: 700; color: var(--pine); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .tips-text { font-size: 12px; color: #4A5A4A; line-height: 1.6; }
+  .section-label { font-size: 10px; font-weight: 700; color: var(--pine); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+
+  /* Stars */
+  .stars-input { display: flex; gap: 4px; margin-bottom: 14px; }
+  .star-btn { font-size: 24px; background: none; border: none; cursor: pointer; padding: 0; line-height: 1; }
+
+  /* Notes */
+  .notes-area {
+    width: 100%; min-height: 72px; padding: 10px 12px;
+    border-radius: 8px; border: 1.5px solid #C8B898; background: #F2EDE6;
+    font-size: 13px; line-height: 1.6; color: #3A4A3A; font-family: inherit;
+    resize: none; outline: none; margin-bottom: 10px;
+  }
+  .notes-tap {
+    min-height: 48px; padding: 10px 12px; border-radius: 8px; cursor: text;
+    background: #F2EDE6; border: 1.5px dashed #C8B898; font-size: 13px;
+    color: #A89878; line-height: 1.6; margin-bottom: 14px;
+  }
+  .notes-filled { color: #3A4A3A; }
+
+  /* Action buttons */
+  .card-actions { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .btn-visit {
+    padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1.5px solid; font-family: inherit;
+  }
+  .btn-visit.mark { background: var(--pine); color: #E8F4E8; border-color: var(--pine); }
+  .btn-visit.unmark { background: #FFF0E8; color: #8B4A1A; border-color: #D4956A; }
+  .btn-remove {
+    padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;
+    background: transparent; color: #A87878; border: 1.5px solid #D4B8B8; font-family: inherit;
+  }
+  .btn-save-notes {
+    padding: 6px 14px; border-radius: 6px; background: var(--pine-mid); color: #fff;
+    border: none; cursor: pointer; font-size: 13px; font-family: inherit; margin-right: 8px;
+  }
+  .btn-cancel {
+    padding: 6px 14px; border-radius: 6px; background: transparent; color: var(--stone);
+    border: 1px solid #C0B8AC; cursor: pointer; font-size: 13px; font-family: inherit;
+  }
+
+  /* FAB */
+  .fab {
+    position: fixed; bottom: calc(var(--safe-bottom) + 20px); right: 20px;
+    width: 54px; height: 54px; border-radius: 50%;
+    background: var(--pine); color: #E8F4E8; border: none;
+    font-size: 26px; cursor: pointer; z-index: 200;
+    box-shadow: 0 4px 16px rgba(30,50,30,0.35);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(20,35,20,0.6);
+    z-index: 300; display: flex; align-items: flex-end;
+  }
+  .modal {
+    background: var(--cream); border-radius: 20px 20px 0 0;
+    width: 100%; max-height: 90vh; overflow-y: auto;
+    padding: 0 0 calc(var(--safe-bottom) + 20px);
+  }
+  .modal-handle { width: 36px; height: 4px; background: #C8C0B4; border-radius: 2px; margin: 12px auto 16px; }
+  .modal-body { padding: 0 20px; }
+  .modal-title { font-size: 17px; font-weight: 700; color: var(--pine); margin-bottom: 18px; }
+  .field-label { font-size: 11px; font-weight: 700; color: var(--pine); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
+  .field { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid #C8D4C0; background: #FAFAF6; color: #2A3A2A; font-size: 15px; font-family: inherit; outline: none; margin-bottom: 12px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  textarea.field { resize: none; line-height: 1.6; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .btn-primary { flex: 1; padding: 13px; border-radius: 10px; background: var(--pine); color: #E8F4E8; border: none; font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer; }
+  .btn-primary:disabled { background: #A0A89A; cursor: not-allowed; }
+  .btn-secondary { padding: 13px 20px; border-radius: 10px; background: transparent; color: var(--stone); border: 1.5px solid #C0B8AC; font-size: 15px; font-family: inherit; cursor: pointer; }
+
+  /* Export/Import modal */
+  .io-btn {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px; border-radius: 12px; background: var(--card);
+    border: 1.5px solid var(--border); margin-bottom: 10px;
+    cursor: pointer; width: 100%; text-align: left; font-family: inherit;
+  }
+  .io-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .io-label { font-size: 15px; font-weight: 600; color: #1A2A1A; }
+  .io-desc { font-size: 12px; color: var(--stone); margin-top: 1px; }
+  .empty { text-align: center; padding: 48px 24px; color: var(--stone); }
+  .empty-icon { font-size: 40px; margin-bottom: 10px; }
+
+  /* Header icon button */
+  .icon-btn { background: rgba(255,255,255,0.12); border: none; border-radius: 8px; color: #C8E8C8; font-size: 18px; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="header-title">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path d="M2 18 L7 8 L12 13 L16 6 L20 11" stroke="#A8D4A8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="11" cy="4" r="2.5" fill="#7ABF7A" opacity="0.8"/>
+      </svg>
+      <div>
+        <h1>North Idaho Trail Log</h1>
+        <div class="header-sub">Post Falls · CDA · Rathdrum</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="openIO()" title="Export / Import">⇅</button>
+    </div>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input class="search-input" type="search" placeholder="Search trails..." id="searchInput" oninput="renderList()" autocomplete="off" autocorrect="off" spellcheck="false">
+  </div>
+</div>
+
+<div class="filter-bar">
+  <div class="filter-row" id="filterRow"></div>
+</div>
+<div class="trail-count" id="trailCount"></div>
+
+<div class="trail-list" id="trailList"></div>
+
+<button class="fab" onclick="openAdd()">+</button>
+
+<!-- Add Trail Modal -->
+<div class="modal-overlay" id="addModal" style="display:none" onclick="closeAdd(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-body">
+      <div class="modal-title">Add a trail</div>
+      <label class="field-label">Trail name *</label>
+      <input class="field" id="f-name" placeholder="e.g. Mineral Ridge Trail">
+      <label class="field-label">Location</label>
+      <input class="field" id="f-location" placeholder="e.g. Harrison, ID">
+      <label class="field-label">Distance from Post Falls</label>
+      <input class="field" id="f-distance" placeholder="e.g. ~45 min">
+      <label class="field-label">Trail length</label>
+      <input class="field" id="f-length" placeholder="e.g. 3.4mi loop">
+      <label class="field-label">Elevation</label>
+      <input class="field" id="f-elevation" placeholder="e.g. 700ft gain">
+      <div class="field-row">
+        <div>
+          <label class="field-label">Difficulty</label>
+          <select class="field" id="f-difficulty">
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Type</label>
+          <select class="field" id="f-type">
+            <option value="xc">XC / Pedaling</option>
+            <option value="flow">Flow / Park</option>
+          </select>
+        </div>
+      </div>
+      <label class="field-label">Summary</label>
+      <textarea class="field" id="f-summary" rows="3" placeholder="Describe the trail experience..."></textarea>
+      <label class="field-label">Tips</label>
+      <textarea class="field" id="f-tips" rows="2" placeholder="Parking, hours, watch-outs..."></textarea>
+      <div class="modal-actions">
+        <button class="btn-primary" id="addSubmitBtn" onclick="submitAdd()">Add trail</button>
+        <button class="btn-secondary" onclick="closeAdd()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Export / Import Modal -->
+<div class="modal-overlay" id="ioModal" style="display:none" onclick="closeIO(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-body">
+      <div class="modal-title">Export & Import</div>
+      <button class="io-btn" onclick="exportData()">
+        <div class="io-icon" style="background:#E8F4E8">📤</div>
+        <div>
+          <div class="io-label">Export trail data</div>
+          <div class="io-desc">Save a JSON backup via share sheet</div>
+        </div>
+      </button>
+      <button class="io-btn" onclick="document.getElementById('importFile').click()">
+        <div class="io-icon" style="background:#E8F0F5">📥</div>
+        <div>
+          <div class="io-label">Import trail data</div>
+          <div class="io-desc">Load a previously exported JSON file</div>
+        </div>
+      </button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      <p style="font-size:12px;color:var(--stone);line-height:1.6;margin-top:10px">
+        Export saves all your trails, notes, ratings, and visited status to a JSON file.
+        Import will replace your current data — export first if you want a backup.
+      </p>
+      <div class="modal-actions" style="margin-top:14px">
+        <button class="btn-secondary" style="flex:1" onclick="closeIO()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'mtb-trails-v1';
+
+const DEFAULT_TRAILS = [
+  { id:1, name:"Canfield Mountain — Trail A & Trail B", location:"Coeur d'Alene, ID", distance:"~25 min", difficulty:"beginner", type:"xc", status:"planned", length:"Trail B ~2mi / Trail A 5.6mi", elevation:"Moderate rolling", summary:"Long, winding singletrack through forested Canfield Mountain. Trail B is easy; Trail A (East) is 5.6 miles of wide, smooth dirt. Lettered trails are mild — numbered trails are steeper.", tips:"Weekday evenings best to avoid moto traffic. Park at Mountain Vista Dr. Multi-use with motos/ATVs — stay alert on blind corners. Open 5AM–11PM, free.", userNotes:"", userRating:0, visitDate:"" },
+  { id:2, name:"Rathdrum Mountain Park — Skyline Trail", location:"Rathdrum, ID", distance:"~15 min", difficulty:"intermediate", type:"flow", status:"planned", length:"~6mi full loop", elevation:"1,200ft gain", summary:"New beginner flow trail with smooth berms, small rollable tabletops, and tighter corners. Access via StormKing Parkway climb.", tips:"Full loop is advanced beginner+. Open 7AM–9PM, free.", userNotes:"", userRating:0, visitDate:"" },
+  { id:3, name:"Rathdrum Mountain Park — StormKing Parkway", location:"Rathdrum, ID", distance:"~15 min", difficulty:"beginner", type:"xc", status:"planned", length:"~3mi to top", elevation:"Gradual climb", summary:"Gradual dirt/gravel double track up to the flow trail system. Warm-up climb with no technical sections, steady incline through pine forest.", tips:"Starts behind the gate at parking lot. Use this to access Skyline Trail. Open 7AM–9PM, free.", userNotes:"", userRating:0, visitDate:"" },
+  { id:4, name:"Q'emiln Park — River Trails", location:"Post Falls, ID", distance:"In town", difficulty:"beginner", type:"xc", status:"planned", length:"0.38–3.7mi loops", elevation:"Minimal", summary:"Mellow riverside trails along the Spokane River. Short loop options near river level are the most beginner-friendly. Great for building confidence close to home.", tips:"Start at Q'emiln river-level trailhead for flattest riding. Cliffs nearby — stay on trail. Open 6AM–9PM. Dogs not allowed.", userNotes:"", userRating:0, visitDate:"" },
+  { id:5, name:"Q'emiln Park — Community Forest", location:"Post Falls, ID", distance:"In town", difficulty:"intermediate", type:"xc", status:"planned", length:"Up to 6mi loops", elevation:"Moderate ups/downs", summary:"500-acre network running through ravines, up hillsides, and along the river. More challenging than river-level trails — some steep and rocky sections.", tips:"Follow the colored dot/diamond trail markers. Download trail map from Post Falls Parks website. Build skills on river trails first.", userNotes:"", userRating:0, visitDate:"" },
+  { id:6, name:"Farragut State Park — High Point Trail", location:"Athol, ID", distance:"~40 min", difficulty:"intermediate", type:"xc", status:"planned", length:"2.3mi", elevation:"534ft gain", summary:"Top rated MTB trail at Farragut (4.5 stars, 482 reviews). 2.3 miles with 534ft of gain through Idaho Panhandle National Forest. Great views of Lake Pend Oreille.", tips:"Best XC stepping stone from beginner to intermediate. Day use fee. Open 8AM–8PM.", userNotes:"", userRating:0, visitDate:"" },
+  { id:7, name:"Farragut State Park — Squirrel Cache Loop", location:"Athol, ID", distance:"~40 min", difficulty:"beginner", type:"xc", status:"planned", length:"1.2mi", elevation:"Minimal", summary:"Easiest XC loop at Farragut. 1.2-mile self-guided nature trail with gentle ups and downs.", tips:"Trailhead between Gilmore and Waldron Campgrounds along South Road. Day use fee.", userNotes:"", userRating:0, visitDate:"" },
+  { id:8, name:"Farragut State Park — Beaver Bay Shoreline", location:"Athol, ID", distance:"~40 min", difficulty:"beginner", type:"xc", status:"planned", length:"Moderate", elevation:"~95ft", summary:"Family-friendly singletrack along Lake Pend Oreille shoreline. Easy physical rating with beautiful lake views.", tips:"Great to combine with Squirrel Cache for a longer beginner day. Day use fee applies.", userNotes:"", userRating:0, visitDate:"" },
+  { id:9, name:"Farragut State Park — Outer Loop", location:"Athol, ID", distance:"~40 min", difficulty:"intermediate", type:"xc", status:"planned", length:"12.4mi", elevation:"Moderate rolling", summary:"12.4-mile multi-trail loop starting at the visitor center. Connects Button Hook Bay, shoreline trail, Idlewilde Bay, and back.", tips:"Pick up a trail map at visitor center — intersection numbers are essential. Day use fee.", userNotes:"", userRating:0, visitDate:"" },
+  { id:10, name:"Silver Mountain Bike Park", location:"Kellogg, ID", distance:"~1 hr", difficulty:"intermediate", type:"flow", status:"planned", length:"Various runs", elevation:"Lift-served", summary:"Lift-served bike park with gondola access. Beginner lessons available (3hrs, $75 or $137 with rental + lift).", tips:"Lessons start June 13, book 24hrs in advance. Blackout dates: June 17–20, July 17–19, Sept 18–20. Full-face helmet strongly recommended.", userNotes:"", userRating:0, visitDate:"" },
+  { id:11, name:"Canfield Mountain — Cancourse Flow Trails", location:"Coeur d'Alene, ID", distance:"~25 min", difficulty:"intermediate", type:"flow", status:"planned", length:"Various", elevation:"Downhill focused", summary:"Newer purpose-built flow trails adjacent to Canfield. Rated 4.9 stars locally — the best MTB spot in CdA. Mix of beginner and intermediate flow.", tips:"Park at East Shadduck Lane (Cancourse lot). Great next step after Trail A/B. Open 5AM–11PM.", userNotes:"", userRating:0, visitDate:"" },
+  { id:12, name:"English Point Recreation Trails", location:"Hayden, ID", distance:"~20 min", difficulty:"beginner", type:"xc", status:"planned", length:"Moderate", elevation:"Minimal", summary:"Gradual, well-maintained forested trails near Hayden Lake. Wide paths, mostly shaded, family-friendly.", tips:"A low-pressure option for very first rides. Great dirt and forest trail feel without technical challenges.", userNotes:"", userRating:0, visitDate:"" },
+  { id:13, name:"Canfield Mountain — Penn / Cave Loop", location:"Coeur d'Alene, ID", distance:"~25 min", difficulty:"intermediate", type:"xc", status:"planned", length:"~5–7mi loop", elevation:"Significant gain", summary:"Classic Canfield loop — climb Trail 8, cross to Penn Station, descend Cave Trail. A real step up with elevation and a fun descent.", tips:"Save for after Trail A/B feel comfortable. Shared with motorcycles. Numbered trails are steeper than lettered.", userNotes:"", userRating:0, visitDate:"" },
+  { id:14, name:"Schweitzer Mountain — Bike Park", location:"Sandpoint, ID", distance:"~1 hr", difficulty:"intermediate", type:"flow", status:"planned", length:"Various runs", elevation:"Lift-served", summary:"Mountain bike park and lessons at Schweitzer Resort above Sandpoint. Beautiful setting on Lake Pend Oreille.", tips:"Check schweitzer.com for current summer programming and pricing.", userNotes:"", userRating:0, visitDate:"" }
+];
+
+// --- State ---
+let trails = [];
+let filters = { diff: 'all', type: 'all', status: 'all' };
+let expandedId = null;
+let editingNotesId = null;
+
+// --- Storage ---
+function load() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) { trails = JSON.parse(s); return; }
+  } catch(e) {}
+  trails = JSON.parse(JSON.stringify(DEFAULT_TRAILS));
+}
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(trails)); } catch(e) {}
+}
+function getTrail(id) { return trails.find(t => t.id === id); }
+function updateTrail(id, updates) {
+  trails = trails.map(t => t.id === id ? {...t, ...updates} : t);
+  save();
+}
+
+// --- Filters ---
+function buildFilters() {
+  const row = document.getElementById('filterRow');
+  const groups = [
+    { key:'diff', options:[{v:'all',l:'All levels'},{v:'beginner',l:'Beginner'},{v:'intermediate',l:'Intermediate'}] },
+    { sep: true },
+    { key:'type', options:[{v:'all',l:'All types'},{v:'xc',l:'XC'},{v:'flow',l:'Flow'}] },
+    { sep: true },
+    { key:'status', options:[{v:'all',l:'All'},{v:'planned',l:'Planned'},{v:'visited',l:'Visited'}] }
+  ];
+  row.innerHTML = groups.map(g => {
+    if (g.sep) return '<div class="pill-sep"></div>';
+    return g.options.map(o =>
+      `<button class="pill${filters[g.key]===o.v?' active':''}" onclick="setFilter('${g.key}','${o.v}')">${o.l}</button>`
+    ).join('');
+  }).join('');
+}
+function setFilter(key, val) {
+  filters[key] = val;
+  expandedId = null; editingNotesId = null;
+  buildFilters(); renderList();
+}
+
+// --- Filtered trails ---
+function getFiltered() {
+  const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  return trails.filter(t => {
+    if (filters.diff !== 'all' && t.difficulty !== filters.diff) return false;
+    if (filters.type !== 'all' && t.type !== filters.type) return false;
+    if (filters.status !== 'all' && t.status !== filters.status) return false;
+    if (q && !t.name.toLowerCase().includes(q) && !t.location.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+// --- Stats ---
+function renderStats() {
+  const visited = trails.filter(t => t.status === 'visited').length;
+  const rated = trails.filter(t => t.userRating > 0);
+  const avg = rated.length ? (rated.reduce((a,t) => a+t.userRating,0)/rated.length).toFixed(1) : '—';
+  document.getElementById('stats').innerHTML = [
+    {v:trails.length, l:'Trails'},
+    {v:visited, l:'Visited'},
+    {v:trails.length-visited, l:'To go'},
+    {v:rated.length ? avg+'★' : '—', l:'Avg rating'}
+  ].map(s=>`<div class="stat"><div class="stat-val">${s.v}</div><div class="stat-label">${s.l}</div></div>`).join('');
+}
+
+// --- Render list ---
+function renderList() {
+  const filtered = getFiltered();
+  document.getElementById('trailCount').textContent = `${filtered.length} of ${trails.length} trails`;
+  const list = document.getElementById('trailList');
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🌲</div><p>No trails match your filters.</p></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(t => renderCard(t)).join('');
+}
+
+function renderCard(t) {
+  const visited = t.status === 'visited';
+  const isOpen = expandedId === t.id;
+  const editingNotes = editingNotesId === t.id;
+  const stars = t.userRating > 0 ? '★'.repeat(t.userRating) + '☆'.repeat(5-t.userRating) : '';
+
+  return `
+  <div class="trail-card${visited?' visited':''}" id="card-${t.id}">
+    <div class="card-header" onclick="toggleExpand(${t.id})">
+      <button class="visit-btn${visited?' done':''}" onclick="event.stopPropagation();toggleVisited(${t.id})">${visited?'✓':''}</button>
+      <div class="card-info">
+        <div class="card-name">${esc(t.name)}</div>
+        <div class="card-loc">${esc(t.location)} · ${esc(t.distance)}</div>
+        <div class="card-meta-row">
+          <span class="badge badge-${t.difficulty}">${t.difficulty.charAt(0).toUpperCase()+t.difficulty.slice(1)}</span>
+          <span class="badge badge-${t.type}">${t.type==='xc'?'XC':'Flow'}</span>
+          ${stars ? `<span class="stars-small">${stars}</span>` : ''}
+          ${visited && t.visitDate ? `<span class="visited-tag">✓ ${esc(t.visitDate)}</span>` : ''}
+          ${t.userNotes ? `<span class="notes-tag">📝</span>` : ''}
+        </div>
+      </div>
+      <span class="chevron">${isOpen?'▲':'▼'}</span>
+    </div>
+    ${isOpen ? `
+    <div class="card-detail open">
+      <div class="detail-meta">
+        <span class="detail-meta-item">📏 ${esc(t.length)}</span>
+        <span class="detail-meta-item">⛰ ${esc(t.elevation)}</span>
+        <span class="detail-meta-item">${t.type==='xc'?'🚵 XC':'🌊 Flow'}</span>
+      </div>
+      <p class="detail-summary">${esc(t.summary)}</p>
+      ${t.tips ? `<div class="tips-box"><div class="tips-label">Trail tips</div><div class="tips-text">${esc(t.tips)}</div></div>` : ''}
+
+      <div class="section-label">Your rating</div>
+      <div class="stars-input" style="margin-bottom:14px">
+        ${[1,2,3,4,5].map(s=>`<button class="star-btn" onclick="setRating(${t.id},${s})" style="color:${s<=t.userRating?'#8B6914':'#D4C9B0'}">${s<=t.userRating?'★':'☆'}</button>`).join('')}
+      </div>
+
+      <div class="section-label">Your notes</div>
+      ${editingNotes ? `
+        <textarea class="notes-area" id="notesInput-${t.id}" onkeydown="notesKey(event,${t.id})">${esc(t.userNotes)}</textarea>
+        <div style="margin-bottom:14px">
+          <button class="btn-save-notes" onclick="saveNotes(${t.id})">Save</button>
+          <button class="btn-cancel" onclick="cancelNotes(${t.id})">Cancel</button>
+        </div>
+      ` : `
+        <div class="notes-tap${t.userNotes?' notes-filled':''}" onclick="startNotes(${t.id})">${t.userNotes ? esc(t.userNotes) : 'Tap to add notes...'}</div>
+      `}
+
+      <div class="card-actions">
+        <button class="btn-visit ${visited?'unmark':'mark'}" onclick="toggleVisited(${t.id})">${visited?'Mark as planned':'Mark as visited ✓'}</button>
+        <button class="btn-remove" onclick="removeTrail(${t.id})">Remove</button>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// --- Actions ---
+function toggleExpand(id) {
+  if (expandedId === id) { expandedId = null; editingNotesId = null; }
+  else { expandedId = id; editingNotesId = null; }
+  renderList();
+  if (expandedId) {
+    setTimeout(() => {
+      const el = document.getElementById('card-'+id);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }, 50);
+  }
+}
+
+function toggleVisited(id) {
+  const t = getTrail(id);
+  const nowVisited = t.status !== 'visited';
+  updateTrail(id, {
+    status: nowVisited ? 'visited' : 'planned',
+    visitDate: nowVisited ? new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : ''
+  });
+  renderStats(); renderList();
+}
+
+function setRating(id, r) {
+  const t = getTrail(id);
+  updateTrail(id, { userRating: t.userRating === r ? 0 : r });
+  renderStats(); renderList();
+}
+
+function startNotes(id) {
+  editingNotesId = id;
+  renderList();
+  setTimeout(() => {
+    const el = document.getElementById('notesInput-'+id);
+    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  }, 50);
+}
+
+function saveNotes(id) {
+  const el = document.getElementById('notesInput-'+id);
+  if (el) { updateTrail(id, { userNotes: el.value }); }
+  editingNotesId = null;
+  renderList();
+}
+
+function cancelNotes(id) {
+  editingNotesId = null;
+  renderList();
+}
+
+function notesKey(e, id) {
+  if (e.key === 'Enter' && e.metaKey) saveNotes(id);
+  if (e.key === 'Escape') cancelNotes(id);
+}
+
+function removeTrail(id) {
+  if (!confirm('Remove this trail from your log?')) return;
+  trails = trails.filter(t => t.id !== id);
+  if (expandedId === id) expandedId = null;
+  save(); renderStats(); renderList();
+}
+
+// --- Add Trail ---
+function openAdd() {
+  ['name','location','distance','length','elevation','summary','tips'].forEach(k => {
+    document.getElementById('f-'+k).value = '';
+  });
+  document.getElementById('f-difficulty').value = 'beginner';
+  document.getElementById('f-type').value = 'xc';
+  document.getElementById('addModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('f-name').focus(), 100);
+}
+function closeAdd(e) {
+  if (!e || e.target === document.getElementById('addModal')) {
+    document.getElementById('addModal').style.display = 'none';
+  }
+}
+function submitAdd() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) return;
+  const newId = trails.length ? Math.max(...trails.map(t=>t.id)) + 1 : 1;
+  trails.push({
+    id: newId,
+    name,
+    location: document.getElementById('f-location').value.trim(),
+    distance: document.getElementById('f-distance').value.trim(),
+    length: document.getElementById('f-length').value.trim(),
+    elevation: document.getElementById('f-elevation').value.trim(),
+    difficulty: document.getElementById('f-difficulty').value,
+    type: document.getElementById('f-type').value,
+    summary: document.getElementById('f-summary').value.trim(),
+    tips: document.getElementById('f-tips').value.trim(),
+    status: 'planned', userNotes: '', userRating: 0, visitDate: ''
+  });
+  save();
+  document.getElementById('addModal').style.display = 'none';
+  renderStats(); renderList();
+}
+
+// --- Export / Import ---
+function openIO() { document.getElementById('ioModal').style.display = 'flex'; }
+function closeIO(e) {
+  if (!e || e.target === document.getElementById('ioModal')) {
+    document.getElementById('ioModal').style.display = 'none';
+  }
+}
+
+function exportData() {
+  const json = JSON.stringify(trails, null, 2);
+  const blob = new Blob([json], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const date = new Date().toISOString().slice(0,10);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `trail-log-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) { alert('Invalid file — expected a trail list.'); return; }
+      if (!confirm(`Import ${data.length} trails? This will replace your current data.`)) return;
+      trails = data;
+      save();
+      expandedId = null; editingNotesId = null;
+      document.getElementById('ioModal').style.display = 'none';
+      renderStats(); buildFilters(); renderList();
+    } catch(err) { alert('Could not read file: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// --- Init ---
+load();
+renderStats();
+buildFilters();
+renderList();
+</script>
+</body>
+</html>
